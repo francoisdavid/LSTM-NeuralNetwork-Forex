@@ -35,7 +35,7 @@ forexData = []
 forexData = pd.DataFrame()
 
 # Get the Forex data. Which is set to Euro to USD
-forexPrices = quandl.get("SGE/BELCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31", end_date="2018-03-29")
+forexPrices = quandl.get("SGE/BELCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31", end_date="2018-03-29")
 forexScaler = MinMaxScaler(feature_range=(0, 1))
 forexScaler.fit(forexPrices)
 forexData = forexPrices
@@ -50,11 +50,12 @@ def interpolatedForFreq(call):
     df = pd.DataFrame(upsampled)
     # df = df.pct_change()
     df = df.fillna(method='bfill')
+    df = df.fillna(0)
     return df
 
 
 # Get the Interest Rate and set them to be in the forexData dataframe.
-interestRate = interpolatedForFreq(quandl.get("SGE/EURIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+interestRate = interpolatedForFreq(quandl.get("SGE/EURIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData["InterestRate"] = interestRate
 forexData = forexData.fillna(method='ffill')
 interestRateScaler = MinMaxScaler(feature_range=(0, 1))
@@ -64,7 +65,7 @@ forexData["InterestRate"] = interestRateScaler.transform(iR)
 
 # Get the Inflation Rate and set them to be in the forexData dataframe.
 inflationRate = interpolatedForFreq(
-    quandl.get("SGE/EURCPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+    quandl.get("SGE/EURCPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData["InflationRate"] = inflationRate
 forexData = forexData.fillna(method='ffill')
 inflationRateScaler = MinMaxScaler(feature_range=(0, 1))
@@ -73,7 +74,7 @@ inflationRateScaler.fit(iF)
 forexData["InflationRate"] = inflationRateScaler.transform(iF)
 
 # Get the Imports and set them to be in the forexData dataframe.
-imports = interpolatedForFreq(quandl.get("SGE/EURIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+imports = interpolatedForFreq(quandl.get("SGE/EURIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData['Imports'] = imports
 forexData = forexData.fillna(method='ffill')
 importsScaler = MinMaxScaler(feature_range=(0, 1))
@@ -82,7 +83,7 @@ importsScaler.fit(imp)
 forexData["Imports"] = importsScaler.transform(imp)
 
 # Get the Exports and set them to be in the forexData dataframe.
-exports = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+exports = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData["Exports"] = exports
 forexData = forexData.fillna(method='ffill')
 exportsScaler = MinMaxScaler(feature_range=(0, 1))
@@ -91,7 +92,7 @@ exportsScaler.fit(exp)
 forexData["Exports"] = exportsScaler.transform(exp)
 
 # Get the Exports and set them to be in the forexData dataframe.
-gdp = interpolatedForFreq(quandl.get("SGE/EURG", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+gdp = interpolatedForFreq(quandl.get("SGE/EURG", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData["GDP"] = gdp
 forexData = forexData.fillna(method='ffill')
 gdpScaler = MinMaxScaler(feature_range=(0, 1))
@@ -101,7 +102,7 @@ forexData["GDP"] = gdpScaler.transform(gdpp)
 
 # Get the Consumer Spending and set them to be in the forexData dataframe.
 consumerSpending = interpolatedForFreq(
-    quandl.get("SGE/EURCSP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+    quandl.get("SGE/EURCSP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData["ConsumerSpending"] = consumerSpending
 forexData = forexData.fillna(method='ffill')
 consumerSpendingScaler = MinMaxScaler(feature_range=(0, 1))
@@ -111,13 +112,15 @@ forexData["ConsumerSpending"] = gdpScaler.transform(consumerSpend)
 
 # Get the Unemployment Rate and set them to be in the forexData dataframe.
 unemploymentRate = interpolatedForFreq(
-    quandl.get("SGE/EURUNR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31"))
+    quandl.get("SGE/EURUNR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
 forexData["UnemploymentRate"] = unemploymentRate
 forexData = forexData.fillna(method='ffill')
+forexData = forexData.fillna(0)
 unemploymentRateScaler = MinMaxScaler(feature_range=(0, 1))
 unemploy = np.array(forexData["UnemploymentRate"]).reshape(-1, 1)
 unemploymentRateScaler.fit(consumerSpend)
 forexData["UnemploymentRate"] = unemploymentRateScaler.transform(consumerSpend)
+forexData = forexData.fillna(0)
 print(forexData)
 
 # Normalize the data so that it has the same noise of the model when we will had a few other variables into the mix.
@@ -162,7 +165,6 @@ model = Sequential()
 
 # Add layers of node to the model.
 model.add(LSTM(units=50, return_sequences=True, input_shape=(prices.shape[1], 8)))
-model.add(Dropout(0.2))
 model.add(LSTM(units=50))
 
 
@@ -170,7 +172,7 @@ model.add(Dense(units=1))
 
 model.compile(optimizer='adam', loss='mean_squared_error')
 
-history = model.fit(prices, toPredict, epochs=30, batch_size=100, validation_split=0.05)
+history = model.fit(prices, toPredict, epochs=150, batch_size=100, validation_split=0.05)
 
 # Graph the loss of both the training and the testing loss for analysis purposes.
 print(history.history['loss'])
@@ -208,7 +210,7 @@ print("\n\npredictedNormalPrice: " , predictedNormalPrice)
 # Calculate the buffer of the second array that need to be used for the real stock prices.
 buffer = train_size + period
 
-forexPrices = quandl.get("SGE/BELCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1998-12-31", end_date="2018-03-29")
+forexPrices = quandl.get("SGE/BELCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31", end_date="2018-03-29")
 
 # Reconvert the prices to display for the graph.
 pricesTest = np.array(forexPrices[buffer:])
@@ -258,7 +260,7 @@ for i in range(buffer, len(forexPrices)):
         print("\nPercentage Done of Arima Precition = %f %% \n" % int((round(loopCount / percentage))))
     ActualValue = realPrices[i]
     # forcast value
-    Prediction = getArimaPrediction(Actual, 3, 2, 0)
+    Prediction = getArimaPrediction(Actual, 3, 1, 0)
     print('Actual=%f, Predicted=%f, Difference=%f' % (ActualValue, Prediction, abs(ActualValue-Prediction)))
     # add it in the list
     arimaPred.append(Prediction)
