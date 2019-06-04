@@ -120,6 +120,54 @@ unemploymentRateScaler = MinMaxScaler(feature_range=(0, 1))
 unemploy = np.array(forexData["UnemploymentRate"]).reshape(-1, 1)
 unemploymentRateScaler.fit(consumerSpend)
 forexData["UnemploymentRate"] = unemploymentRateScaler.transform(consumerSpend)
+
+# USA Data.
+
+# Get the Interest Rate of the United States and set them to be in the forexData dataframe.
+interestRateUSA = interpolatedForFreq(quandl.get("SGE/EURIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+forexData["InterestRate-USA"] = interestRateUSA
+forexData = forexData.fillna(method='ffill')
+interestRateUSAScaler = MinMaxScaler(feature_range=(0, 1))
+iRUSA = np.array(forexData["InterestRate-USA"]).reshape(-1, 1)
+interestRateUSAScaler.fit(iR)
+forexData["InterestRate-USA"] = interestRateUSAScaler.transform(iRUSA)
+
+# Get the Inflation Rate of the US and set them to be in the forexData dataframe.
+inflationRateUSA = interpolatedForFreq(quandl.get("SGE/USACPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+forexData["InflationRate-USA"] = inflationRateUSA
+forexData = forexData.fillna(method='ffill')
+inflationRateUSAScaler = MinMaxScaler(feature_range=(0, 1))
+iF = np.array(forexData["InflationRate-USA"]).reshape(-1, 1)
+inflationRateUSAScaler.fit(iF)
+forexData["InflationRate-USA"] = inflationRateUSAScaler.transform(iF)
+
+# Get the Imports of the US and set them to be in the forexData dataframe.
+importsUSA = interpolatedForFreq(quandl.get("SGE/USAIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+forexData['Imports-USA'] = importsUSA
+forexData = forexData.fillna(method='ffill')
+importsUSAScaler = MinMaxScaler(feature_range=(0, 1))
+impUS = np.array(forexData["Imports-USA"]).reshape(-1, 1)
+importsUSAScaler.fit(impUS)
+forexData["Imports-USA"] = importsUSAScaler.transform(impUS)
+
+# Get the Exports of the US and set them to be in the forexData dataframe.
+exportsUSA = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+forexData["Exports-USA"] = exports
+forexData = forexData.fillna(method='ffill')
+exportsUSAScaler = MinMaxScaler(feature_range=(0, 1))
+expUS = np.array(forexData["Exports-USA"]).reshape(-1, 1)
+exportsUSAScaler.fit(expUS)
+forexData["Exports-USA"] = exportsUSAScaler.transform(expUS)
+
+# Get the CPI of the US and set them to be in the forexData dataframe.
+consumerPriceIndexUSA = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+forexData["CPI-USA"] = consumerPriceIndexUSA
+forexData = forexData.fillna(method='ffill')
+cpiUSAScaler = MinMaxScaler(feature_range=(0, 1))
+cpiUS = np.array(forexData["CPI-USA"]).reshape(-1, 1)
+cpiUSAScaler.fit(cpiUS)
+forexData["CPI-USA"] = cpiUSAScaler.transform(cpiUS)
+
 forexData = forexData.fillna(0)
 print(forexData)
 
@@ -156,7 +204,7 @@ for i in range(period, train_size + test_size):
 
 prices, toPredict = np.array(prices), np.array(toPredict)
 
-prices = np.reshape(prices, (prices.shape[0], prices.shape[1], 8))
+prices = np.reshape(prices, (prices.shape[0], prices.shape[1], 13))
 
 print(toPredict[0])
 print(prices[0])
@@ -164,7 +212,7 @@ print(prices[0])
 model = Sequential()
 
 # Add layers of node to the model.
-model.add(LSTM(units=50, return_sequences=True, input_shape=(prices.shape[1], 8)))
+model.add(LSTM(units=50, return_sequences=True, input_shape=(prices.shape[1], 13)))
 model.add(LSTM(units=50))
 
 
@@ -201,7 +249,7 @@ print("\nX_Test: ", X_test)
 print("\npricesToPredict: ", pricesToPredict)
 
 X_test = np.array(X_test)
-X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 8))
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 13))
 # Predict the prices using the model and do the inverse of the normalization done.
 predicted_stock_price = model.predict(X_test)
 predictedNormalPrice = predicted_stock_price  # forexScaler.inverse_transform(predicted_stock_price)
