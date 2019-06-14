@@ -3,137 +3,154 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM
 import numpy as np
 import matplotlib
-
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import quandl
-
 quandl.ApiConfig.api_key = "g5x4nVyzgx-hKs6s7Nt2"
 import pandas_datareader as pdr
 import datetime
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
-from sklearn.utils import check_array
 from sklearn.preprocessing import MinMaxScaler
-import math
 import statistics
-
-'''
-# Make call to the yahoo API to get the desired data.
-aapl = pdr.get_data_yahoo('AAL',  start=datetime.datetime(1990, 10, 1), end=datetime.datetime(2018, 5, 8))
-
-# We can do the same with Quandl.
-data = quandl.get_table('WIKI/PRICES', qopts = {'columns': ['close', 'volume']}, ticker = ['AAPL'], date = { 'gte': '2016-01-01', 'lte': '2018-05-01' }, paginate=True)
-
-# Extract the close of the desired stock.
-stockClose = aapl.iloc[:, [3]].values
-'''
+import math
 
 # DataFrame that will be filled with the information acquired from Quandl.
-forexData = []
 forexData = pd.DataFrame()
 
 # Get the Forex data. Which is set to Euro to USD
-forexPrices = quandl.get("SGE/BELCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31", end_date="2018-03-29")
+forexPrices = quandl.get("CUR/GBP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31", end_date="2015-03-29")
 forexScaler = MinMaxScaler(feature_range=(0, 1))
 forexScaler.fit(forexPrices)
+forexData = forexData.fillna(0)
 forexData = forexPrices
-# forexData = pd.DataFrame(forexScaler.transform(forexPrices))
-dataLength = len(forexPrices)
-
 
 # Function used to interpolate the missing values for monthly values and others missing entries.
 def interpolatedForFreq(call):
     df = pd.DataFrame(call)
     upsampled = df.resample("B").ffill()
     df = pd.DataFrame(upsampled)
-    # df = df.pct_change()
+   # df = df.pct_change()
     df = df.fillna(method='bfill')
     df = df.fillna(0)
     return df
 
+# Function used to interpolate the missing values for monthly values and others missing entries.
+def interpolatedForFreqPercent(call):
+    df = pd.DataFrame(call)
+    upsampled = df.resample("B").ffill()
+    df.replace([np.inf, -np.inf], np.nan)
+    df = pd.DataFrame(upsampled)
+    df = df.pct_change()
+    df = df.fillna(method='bfill')
+    df = df.fillna(0)
+    return df
 
-# Get the Interest Rate and set them to be in the forexData dataframe.
-interestRate = interpolatedForFreq(quandl.get("SGE/EURIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["InterestRate"] = interestRate
-forexData = forexData.fillna(method='ffill')
-interestRateScaler = MinMaxScaler(feature_range=(0, 1))
-iR = np.array(forexData["InterestRate"]).reshape(-1, 1)
-interestRateScaler.fit(iR)
-forexData["InterestRate"] = interestRateScaler.transform(iR)
+# CANADA Data
 
-# Get the Inflation Rate and set them to be in the forexData dataframe.
-inflationRate = interpolatedForFreq(
-    quandl.get("SGE/EURCPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["InflationRate"] = inflationRate
+# Get the Interest Rate of CAN and set them to be in the forexData dataframe.
+interestRateCAN = interpolatedForFreqPercent(quandl.get("SGE/GBRIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["InterestRate-GBR"] = interestRateCAN
 forexData = forexData.fillna(method='ffill')
-inflationRateScaler = MinMaxScaler(feature_range=(0, 1))
-iF = np.array(forexData["InflationRate"]).reshape(-1, 1)
-inflationRateScaler.fit(iF)
-forexData["InflationRate"] = inflationRateScaler.transform(iF)
+interestRateCANScaler = MinMaxScaler(feature_range=(0, 1))
+iRCAN = np.array(forexData["InterestRate-GBR"]).reshape(-1, 1)
+interestRateCANScaler.fit(iRCAN)
+forexData["InterestRate-GBR"] = interestRateCANScaler.transform(iRCAN)
 
-# Get the Imports and set them to be in the forexData dataframe.
-imports = interpolatedForFreq(quandl.get("SGE/EURIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData['Imports'] = imports
+# Get the Inflation Rate of AUSTRALIA and set them to be in the forexData dataframe.
+inflationRateAUS = interpolatedForFreq(quandl.get("SGE/GBRCPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["InflationRate-GBR"] = inflationRateAUS
 forexData = forexData.fillna(method='ffill')
-importsScaler = MinMaxScaler(feature_range=(0, 1))
-imp = np.array(forexData["Imports"]).reshape(-1, 1)
-importsScaler.fit(imp)
-forexData["Imports"] = importsScaler.transform(imp)
+inflationRateAUSScaler = MinMaxScaler(feature_range=(0, 1))
+iFAUS = np.array(forexData["InflationRate-GBR"]).reshape(-1, 1)
+inflationRateAUSScaler.fit(iFAUS)
+forexData["InflationRate-GBR"] = inflationRateAUSScaler.transform(iFAUS)
+'''
+# Get the Inflation Rate of CAN and set them to be in the forexData dataframe.
+inflationRateCAN = interpolatedForFreqPercent(quandl.get("SGE/CANCPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1992-12-31", end_date="2018-03-29"))
+forexData["InflationRate-CAN"] = inflationRateCAN
+forexData = forexData.fillna(method='ffill')
+inflationRateCANScaler = MinMaxScaler(feature_range=(0, 1))
+iFCAN = np.array(forexData["InflationRate-CAN"]).reshape(-1, 1)
 
-# Get the Exports and set them to be in the forexData dataframe.
-exports = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["Exports"] = exports
-forexData = forexData.fillna(method='ffill')
-exportsScaler = MinMaxScaler(feature_range=(0, 1))
-exp = np.array(forexData["Exports"]).reshape(-1, 1)
-exportsScaler.fit(exp)
-forexData["Exports"] = exportsScaler.transform(exp)
+print("Is any value nan:", forexData["InflationRate-CAN"].isnull().values.any())
+print(forexData)
+inflationRateCANScaler.fit(iFCAN)
+forexData["InflationRate-CAN"] = inflationRateCANScaler.transform(iFCAN)
+'''
 
-# Get the Exports and set them to be in the forexData dataframe.
-gdp = interpolatedForFreq(quandl.get("SGE/EURG", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["GDP"] = gdp
+# Get the Imports of CAN and set them to be in the forexData dataframe.
+importsCAN = interpolatedForFreqPercent(quandl.get("SGE/GBRIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31" , end_date="2018-03-29"))
+forexData['Imports-GBR'] = importsCAN
 forexData = forexData.fillna(method='ffill')
-gdpScaler = MinMaxScaler(feature_range=(0, 1))
-gdpp = np.array(forexData["GDP"]).reshape(-1, 1)
-gdpScaler.fit(gdpp)
-forexData["GDP"] = gdpScaler.transform(gdpp)
+importsCANScaler = MinMaxScaler(feature_range=(0, 1))
+impCAN = np.array(forexData["Imports-GBR"]).reshape(-1, 1)
+importsCANScaler.fit(impCAN)
+forexData["Imports-GBR"] = importsCANScaler.transform(impCAN)
 
-# Get the Consumer Spending and set them to be in the forexData dataframe.
-consumerSpending = interpolatedForFreq(
-    quandl.get("SGE/EURCSP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["ConsumerSpending"] = consumerSpending
-forexData = forexData.fillna(method='ffill')
-consumerSpendingScaler = MinMaxScaler(feature_range=(0, 1))
-consumerSpend = np.array(forexData["ConsumerSpending"]).reshape(-1, 1)
-consumerSpendingScaler.fit(consumerSpend)
-forexData["ConsumerSpending"] = gdpScaler.transform(consumerSpend)
 
-# Get the Unemployment Rate and set them to be in the forexData dataframe.
-unemploymentRate = interpolatedForFreq(
-    quandl.get("SGE/EURUNR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["UnemploymentRate"] = unemploymentRate
+# Get the Exports of CAN and set them to be in the forexData dataframe.
+exportsCAN = interpolatedForFreqPercent(quandl.get("SGE/GBREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["Exports-GBR"] = exportsCAN
 forexData = forexData.fillna(method='ffill')
-forexData = forexData.fillna(0)
-unemploymentRateScaler = MinMaxScaler(feature_range=(0, 1))
-unemploy = np.array(forexData["UnemploymentRate"]).reshape(-1, 1)
-unemploymentRateScaler.fit(consumerSpend)
-forexData["UnemploymentRate"] = unemploymentRateScaler.transform(consumerSpend)
+exportsCANScaler = MinMaxScaler(feature_range=(0, 1))
+expCAN = np.array(forexData["Exports-GBR"]).reshape(-1, 1)
+exportsCANScaler.fit(expCAN)
+forexData["Exports-GBR"] = exportsCANScaler.transform(expCAN)
+
+
+# Get the gdp of CAN and set them to be in the forexData dataframe.
+gdpCAN = interpolatedForFreqPercent(quandl.get("SGE/GBRG", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["GDP-GBR"] = gdpCAN
+forexData = forexData.fillna(method='ffill')
+gdpCANScaler = MinMaxScaler(feature_range=(0, 1))
+gdppCAN = np.array(forexData["GDP-GBR"]).reshape(-1, 1)
+gdpCANScaler.fit(gdppCAN)
+forexData["GDP-GBR"] = gdpCANScaler.transform(gdppCAN)
+
+
+# Get the Consumer Spending of CAN and set them to be in the forexData dataframe.
+consumerSpendingCAN = interpolatedForFreqPercent(quandl.get("SGE/GBRCSP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["ConsumerSpending-GBR"] = consumerSpendingCAN
+forexData = forexData.fillna(method='ffill')
+consumerSpendingCANScaler = MinMaxScaler(feature_range=(0, 1))
+consumerSpendCAN = np.array(forexData["ConsumerSpending-GBR"]).reshape(-1, 1)
+consumerSpendingCANScaler.fit(consumerSpendCAN)
+forexData["ConsumerSpending-GBR"] = consumerSpendingCANScaler.transform(consumerSpendCAN)
+
+
+# Get the Unemployment Rate of CAN and set them to be in the forexData dataframe.
+unemploymentRateCAN = interpolatedForFreqPercent(quandl.get("SGE/GBRUNR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["UnemploymentRate-GBR"] = unemploymentRateCAN
+forexData = forexData.fillna(method='ffill')
+unemploymentRateCANScaler = MinMaxScaler(feature_range=(0, 1))
+unemployCAN = np.array(forexData["UnemploymentRate-GBR"]).reshape(-1, 1)
+unemploymentRateCANScaler.fit(unemployCAN)
+forexData["UnemploymentRate-GBR"] = unemploymentRateCANScaler.transform(unemployCAN)
+
+# Get the CPI of the GBR and set them to be in the forexData dataframe.
+consumerPriceIndexCAN = interpolatedForFreqPercent(quandl.get("SGE/GBRCPI", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["CPI-GBR"] = consumerPriceIndexCAN
+forexData = forexData.fillna(method='ffill')
+cpiCANScaler = MinMaxScaler(feature_range=(0, 1))
+cpiCAN = np.array(forexData["CPI-GBR"]).reshape(-1, 1)
+cpiCANScaler.fit(cpiCAN)
+forexData["CPI-GBR"] = cpiCANScaler.transform(cpiCAN)
 
 # USA Data.
 
 # Get the Interest Rate of the United States and set them to be in the forexData dataframe.
-interestRateUSA = interpolatedForFreq(quandl.get("SGE/EURIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+interestRateUSA = interpolatedForFreqPercent(quandl.get("SGE/USAIR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
 forexData["InterestRate-USA"] = interestRateUSA
 forexData = forexData.fillna(method='ffill')
 interestRateUSAScaler = MinMaxScaler(feature_range=(0, 1))
 iRUSA = np.array(forexData["InterestRate-USA"]).reshape(-1, 1)
-interestRateUSAScaler.fit(iR)
+interestRateUSAScaler.fit(iRUSA)
 forexData["InterestRate-USA"] = interestRateUSAScaler.transform(iRUSA)
 
 # Get the Inflation Rate of the US and set them to be in the forexData dataframe.
-inflationRateUSA = interpolatedForFreq(quandl.get("SGE/USACPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+inflationRateUSA = interpolatedForFreq(quandl.get("SGE/USACPIC", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
 forexData["InflationRate-USA"] = inflationRateUSA
 forexData = forexData.fillna(method='ffill')
 inflationRateUSAScaler = MinMaxScaler(feature_range=(0, 1))
@@ -142,7 +159,7 @@ inflationRateUSAScaler.fit(iF)
 forexData["InflationRate-USA"] = inflationRateUSAScaler.transform(iF)
 
 # Get the Imports of the US and set them to be in the forexData dataframe.
-importsUSA = interpolatedForFreq(quandl.get("SGE/USAIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+importsUSA = interpolatedForFreqPercent(quandl.get("SGE/USAIMVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
 forexData['Imports-USA'] = importsUSA
 forexData = forexData.fillna(method='ffill')
 importsUSAScaler = MinMaxScaler(feature_range=(0, 1))
@@ -150,17 +167,19 @@ impUS = np.array(forexData["Imports-USA"]).reshape(-1, 1)
 importsUSAScaler.fit(impUS)
 forexData["Imports-USA"] = importsUSAScaler.transform(impUS)
 
+
 # Get the Exports of the US and set them to be in the forexData dataframe.
-exportsUSA = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
-forexData["Exports-USA"] = exports
+exportsUSA = interpolatedForFreqPercent(quandl.get("SGE/USAEXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["Exports-USA"] = exportsUSA
 forexData = forexData.fillna(method='ffill')
 exportsUSAScaler = MinMaxScaler(feature_range=(0, 1))
 expUS = np.array(forexData["Exports-USA"]).reshape(-1, 1)
 exportsUSAScaler.fit(expUS)
 forexData["Exports-USA"] = exportsUSAScaler.transform(expUS)
 
+
 # Get the CPI of the US and set them to be in the forexData dataframe.
-consumerPriceIndexUSA = interpolatedForFreq(quandl.get("SGE/EUREXVOL", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31"))
+consumerPriceIndexUSA = interpolatedForFreqPercent(quandl.get("SGE/USACPI", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
 forexData["CPI-USA"] = consumerPriceIndexUSA
 forexData = forexData.fillna(method='ffill')
 cpiUSAScaler = MinMaxScaler(feature_range=(0, 1))
@@ -168,28 +187,64 @@ cpiUS = np.array(forexData["CPI-USA"]).reshape(-1, 1)
 cpiUSAScaler.fit(cpiUS)
 forexData["CPI-USA"] = cpiUSAScaler.transform(cpiUS)
 
+
+# Get the Unemployment Rate of the USA and set them to be in the forexData dataframe.
+unemploymentRateUSA = interpolatedForFreqPercent(quandl.get("SGE/USAUNR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["UnemploymentRate-USA"] = unemploymentRateUSA
+forexData = forexData.fillna(method='ffill')
+forexData = forexData.fillna(0)
+unemploymentRateUSAScaler = MinMaxScaler(feature_range=(0, 1))
+unemployUSA = np.array(forexData["UnemploymentRate-USA"]).reshape(-1, 1)
+unemploymentRateUSAScaler.fit(unemployUSA)
+forexData["UnemploymentRate-USA"] = unemploymentRateUSAScaler.transform(unemployUSA)
+
+# Get the Consumer Spending of the USA and set them to be in the forexData dataframe.
+consumerSpendingUSA = interpolatedForFreqPercent(quandl.get("SGE/USACSP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["ConsumerSpending-USA"] = consumerSpendingUSA
+forexData = forexData.fillna(method='ffill')
+consumerSpendingUSAScaler = MinMaxScaler(feature_range=(0, 1))
+consumerSpendUSA = np.array(forexData["ConsumerSpending-USA"]).reshape(-1, 1)
+consumerSpendingUSAScaler.fit(consumerSpendUSA)
+forexData["ConsumerSpending-USA"] = consumerSpendingUSAScaler.transform(consumerSpendUSA)
+
+# Get the gdp and set them to be in the forexData dataframe.
+gdpUSA = interpolatedForFreqPercent(quandl.get("SGE/USAG", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31"))
+forexData["GDP-USA"] = gdpUSA
+forexData = forexData.fillna(method='ffill')
+gdpUSAScaler = MinMaxScaler(feature_range=(0, 1))
+gdppUSA = np.array(forexData["GDP-USA"]).reshape(-1, 1)
+gdpUSAScaler.fit(gdppUSA)
+forexData["GDP-USA"] = gdpUSAScaler.transform(gdppUSA)
+
+
+forexData['RATE'] =  quandl.get("CUR/GBP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31", end_date="2015-03-29")
+# Transform the value of the exchange rate so that it is normalized according to the range.
+# It is done here to keep the index of the dataframe earlier and match the appropriate data with the date.
+forexData['RATE'] =forexScaler.transform(forexPrices)
+
+
+# Make sure none of the data entry are empty.
 forexData = forexData.fillna(0)
 print(forexData)
+print("Is any value nan:", forexData.isnull().values.any())
+
+
 
 # Normalize the data so that it has the same noise of the model when we will had a few other variables into the mix.
-'''
 from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler(feature_range=(0, 1))
-training_set_scaled = scaler.fit_transform(forexData)
-'''
-
-forexData = forexData.fillna(0)
 training_set_scaled = np.array(forexData)
-print(training_set_scaled)
 
 # Setting the training and testing length accordingly.
-train_size = int(len(forexData) * 0.95)
+train_size = int(len(forexData) * 0.90)
 test_size = len(forexData) - train_size
 train_data = training_set_scaled[0:train_size]
 test_data = training_set_scaled[:-train_size]
+print(train_size)
+print(test_size)
 
 # Period length
-period = 30
+period =30
 
 # Two arrays that will hold the referrence to the price and wheter it has increased in a predetermined time frame.
 prices = []
@@ -201,32 +256,29 @@ for i in range(period, train_size + test_size):
     toPredict.append(training_set_scaled[i, 0])
 
 
+prices, toPredict = np.array(prices), np.array(toPredict)\
 
-prices, toPredict = np.array(prices), np.array(toPredict)
+prices = np.reshape(prices, (prices.shape[0], prices.shape[1], 17))
 
-prices = np.reshape(prices, (prices.shape[0], prices.shape[1], 13))
-
-print(toPredict[0])
-print(prices[0])
 # Define the model.
 model = Sequential()
 
 # Add layers of node to the model.
-model.add(LSTM(units=50, return_sequences=True, input_shape=(prices.shape[1], 13)))
-model.add(LSTM(units=50))
+model.add(LSTM(units=40, return_sequences=True, input_shape=(prices.shape[1], 17)))
+model.add(Dropout(0.1))
+model.add(LSTM(units=40))
 
+model.add(Dense(units = 1))
 
-model.add(Dense(units=1))
+model.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
-model.compile(optimizer='adam', loss='mean_squared_error')
-
-history = model.fit(prices, toPredict, epochs=150, batch_size=100, validation_split=0.05)
+history = model.fit(prices, toPredict, epochs =150, batch_size = 100, validation_split=0.10)
 
 # Graph the loss of both the training and the testing loss for analysis purposes.
 print(history.history['loss'])
 print(history.history['val_loss'])
 plt.plot(history.history['loss'], color='blue')
-plt.plot(history.history['val_loss'], color='green')
+plt.plot(history.history['val_loss'],   color = 'green')
 plt.title('Model train & Validation loss')
 plt.ylabel('Loss')
 plt.xlabel('Epochs')
@@ -235,8 +287,7 @@ plt.show()
 
 # Separate the code of the array that will constitute the test data, reshape and normalize it.
 inputs = np.array(forexData[train_size:])
-# inputs = inputs.reshape(-1, 1)
-# inputs = scaler.transform(inputs)
+
 
 # Empty array that will be filled with the past period of data used for the prediction which will be used for the prediction.
 X_test = []
@@ -245,39 +296,25 @@ for i in range(period, test_size):
     X_test.append(inputs[i - period:i])
     pricesToPredict.append(inputs[i, 0])
 
-print("\nX_Test: ", X_test)
-print("\npricesToPredict: ", pricesToPredict)
-
 X_test = np.array(X_test)
-X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 13))
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 17))
 # Predict the prices using the model and do the inverse of the normalization done.
 predicted_stock_price = model.predict(X_test)
-predictedNormalPrice = predicted_stock_price  # forexScaler.inverse_transform(predicted_stock_price)
 
-print("\n\npredictedNormalPrice: " , predictedNormalPrice)
+predictedNormalPrice = forexScaler.inverse_transform(predicted_stock_price)
+
 # Calculate the buffer of the second array that need to be used for the real stock prices.
 buffer = train_size + period
 
-forexPrices = quandl.get("SGE/BELCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1993-12-31", end_date="2018-03-29")
+# Get the Forex data. Which is set to Euro to USD
+forexPrices = quandl.get("CUR/GBP", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1999-12-31", end_date="2015-03-29")
 
 # Reconvert the prices to display for the graph.
 pricesTest = np.array(forexPrices[buffer:])
 realPrices = np.array(forexPrices)
-
-
-
-pricesTest = np.nan_to_num(pricesTest)
-predictedNormalPrice = np.nan_to_num(predictedNormalPrice)
-
-# Import the packages to make the linear regression that will be used for analysis purposes.
-from sklearn.linear_model import LinearRegression
-
-linearRegressionModel = LinearRegression()
-linearRegressionModel.fit(prices[train_size:, 0], toPredict[train_size:])
-linearReg = linearRegressionModel.predict(X_test[:, 0])
-linearReg = np.array(linearReg).reshape(-1, 1)
-linearReg = forexScaler.inverse_transform(linearReg)
-
+print(len(pricesTest), len(predictedNormalPrice))
+lstmRMSE = round(math.sqrt(mean_squared_error(pricesTest, predictedNormalPrice)), 6)
+print("RMSE: ", lstmRMSE)
 from statsmodels.tsa.arima_model import ARIMA
 
 # Method that gets the Arima prediction to Be Used for Analysis.
@@ -308,63 +345,56 @@ for i in range(buffer, len(forexPrices)):
         print("\nPercentage Done of Arima Precition = %f %% \n" % int((round(loopCount / percentage))))
     ActualValue = realPrices[i]
     # forcast value
-    Prediction = getArimaPrediction(Actual, 3, 1, 0)
+    Prediction = getArimaPrediction(Actual, 3, 2, 0)
     print('Actual=%f, Predicted=%f, Difference=%f' % (ActualValue, Prediction, abs(ActualValue-Prediction)))
     # add it in the list
     arimaPred.append(Prediction)
     Actual = np.append(Actual, ActualValue)
 
-
-
-
-print(arimaPred)
-# Moving Average method to Be Used for Analysis.
+# Moving average method.
 def moving_average(y_true, period):
-
     y_true = np.ndarray.flatten(y_true)
-    movingaveragepreds = []
+    movingAveragePreds = []
     for i in range(period, len(y_true)):
-        movingaveragepreds.append(np.mean(y_true[i - period:i]))
-
-    return movingaveragepreds
+        movingAveragePreds.append(statistics.mean(y_true[i-period:i]) )
+    return movingAveragePreds
 
 
 # Reconvert the prices to display for the graph.
 pricesForMoving = np.array(forexPrices[train_size:])
 movingAverage = moving_average(pricesForMoving, period)
 
-print(len(pricesTest), len(predictedNormalPrice), len(linearReg), len(movingAverage))
+print("priceTest: ",pricesTest, "predictedNormalPrice" ,predictedNormalPrice, "movingAverage", movingAverage)
+
+priceDataframe =  pd.DataFrame(pricesTest)
+ema = priceDataframe.ewm(span=period , adjust=False).mean()
+print(ema)
 
 # Setup the display of the graphing.
-plt.plot(pricesTest, color='black')
-plt.plot(predictedNormalPrice, color='red')
-plt.plot(arimaPred, color='yellow')
-plt.plot(movingAverage, color='blue')
-plt.title('Deep Learning Prediction of EURO/USD Exchange Rate')
+plt.plot(pricesTest, color = 'black')
+plt.plot(predictedNormalPrice, color = 'red')
+plt.plot(arimaPred, color='gray', )
+plt.plot(ema, color= 'blue')
+plt.title('Deep Learning Prediction of GBR/USD Exchange Rate')
 plt.xlabel('Trading Days')
-plt.ylabel('Foreign Exchange Rate EURO/USD')
-plt.legend(['Real Forex', "LSTM", "ARIMA", "Moving Average"], loc='best')
+plt.ylabel('Foreign Exchange Rate GBR/USD')
+plt.legend(['Real Forex', "LSTM", "Arima", "Exponential Moving Average"], loc='best')
 plt.show()
 
-plt.plot(abs(pricesTest - predictedNormalPrice))
+plt.plot(abs(pricesTest - ema), color='gray', label = 'EMA Errors')
+plt.plot(abs(pricesTest - arimaPred), color = 'black', label= 'Arima Errors')
+plt.plot(abs(pricesTest - predictedNormalPrice), color='red', label = 'LSTM Errors')
+plt.legend(['EMA Errors', "ARIMA Errors", "LSTM Errors"], loc='best')
 plt.show()
 
-# Setup the display of the graphing.
-plt.plot(pricesTest, color='black')
-plt.plot(predictedNormalPrice, color='red')
-
-plt.title('Deep Learning Prediction of EURO/USD Exchange Rate')
-plt.xlabel('Trading Days')
-plt.ylabel('Foreign Exchange Rate EURO/USD')
-plt.legend(['Real Forex', "LSTM"], loc='best')
-plt.show()
 
 
 
 # Will be used for the metrics calculations.
 def mean_absolute_percentage_error(y_true, y_pred):
+   # y_true, y_pred = check_array(y_true, y_pred)
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-
+print(predictedNormalPrice, pricesTest)
 
 # LSTM Metrics to be calculated and then printed.
 lstmRMSE = round(math.sqrt(mean_squared_error(pricesTest, predictedNormalPrice)), 6)
@@ -375,20 +405,21 @@ print("RMSE: ", lstmRMSE)
 print("MAE: ", lstmMAE)
 print("MAPE: ", lstmMAPE)
 
-# Linear Regression Metrics to be calculated and then printed.
+# ARIMA  Metrics to be calculated and then printed.
 regRMSE = round(math.sqrt(mean_squared_error(pricesTest, arimaPred)), 6)
 regMAE = round(mean_absolute_error(pricesTest, arimaPred), 6)
 regMAPE = round(mean_absolute_percentage_error(pricesTest, arimaPred), 6)
-print("Linear Regression")
+print("\nARIMA")
 print("RMSE: ", regRMSE)
 print("MAE: ", regMAE)
 print("MAPE: ", regMAPE)
 
-# Linear Regression Metrics to be calculated and then printed.
-movRMSE = round(math.sqrt(mean_squared_error(pricesTest, movingAverage)), 6)
-movMAE = round(mean_absolute_error(pricesTest, movingAverage), 6)
-movMAPE = round(mean_absolute_percentage_error(pricesTest, movingAverage), 6)
-print("Moving Average")
+# Moving Average Metrics to be calculated and then printed.
+movRMSE = round(math.sqrt(mean_squared_error(pricesTest, ema)), 6)
+movMAE = round(mean_absolute_error(pricesTest, ema), 6)
+movMAPE = round(mean_absolute_percentage_error(pricesTest, ema), 6)
+print("\nMoving Average")
 print("RMSE: ", movRMSE)
 print("MAE: ", movMAE)
 print("MAPE: ", movMAPE)
+
