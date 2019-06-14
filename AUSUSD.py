@@ -26,7 +26,6 @@ forexPrices  = quandl.get("SGE/AUSCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_
 forexScaler = MinMaxScaler(feature_range=(0, 1))
 forexScaler.fit(forexPrices)
 forexData = forexPrices
-#forexData = pd.DataFrame(forexScaler.transform(forexPrices))
 dataLength = len(forexPrices)
 
 # Function used to interpolate the missing values for monthly values and others missing entries.
@@ -205,7 +204,7 @@ forexData["GDP-USA"] = gdpUSAScaler.transform(gdppUSA)
 forexPrices  = quandl.get("SGE/AUSCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1992-12-31", end_date="2018-03-29")
 
 # Transform the value of the exchange rate so that it is normalized according to the range.
-# It is done here to keep the index of the dataframe earlier and match the appropriate data with the date. 
+# It is done here to keep the index of the dataframe earlier and match the appropriate data with the date.
 forexData['Value'] =forexScaler.transform(forexPrices)
 
 
@@ -223,7 +222,7 @@ training_set_scaled = np.array(forexData)
 print(training_set_scaled[0])
 
 # Setting the training and testing length accordingly.
-train_size = int(len(forexData) * 0.95)
+train_size = int(len(forexData) * 0.90)
 test_size = len(forexData) - train_size
 train_data = training_set_scaled[0:train_size]
 test_data = training_set_scaled[:-train_size]
@@ -258,7 +257,7 @@ model.add(Dense(units = 1))
 
 model.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
-history = model.fit(prices, toPredict, epochs =150, batch_size = 100, validation_split=0.05)
+history = model.fit(prices, toPredict, epochs =1, batch_size = 100, validation_split=0.10)
 
 # Graph the loss of both the training and the testing loss for analysis purposes.
 print(history.history['loss'])
@@ -333,13 +332,13 @@ for i in range(buffer, len(forexPrices)):
         print("\nPercentage Done of Arima Precition = %f %% \n" % int((round(loopCount / percentage))))
     ActualValue = realPrices[i]
     # forcast value
-    Prediction = getArimaPrediction(Actual, 3, 2, 0)
+    Prediction = getArimaPrediction(Actual, 1, 0, 1)
     print('Actual=%f, Predicted=%f, Difference=%f' % (ActualValue, Prediction, abs(ActualValue-Prediction)))
     # add it in the list
     arimaPred.append(Prediction)
     Actual = np.append(Actual, ActualValue)
 
-
+# Moving average method.
 def moving_average(y_true, period):
     y_true = np.ndarray.flatten(y_true)
     movingAveragePreds = []
@@ -354,18 +353,25 @@ movingAverage = moving_average(pricesForMoving, period)
 
 print("priceTest: ",pricesTest, "predictedNormalPrice" ,predictedNormalPrice, "movingAverage", movingAverage)
 
+priceDataframe =  pd.DataFrame(pricesTest)
+ema = priceDataframe.ewm(span=period , adjust=False).mean()
+print(ema)
+
 # Setup the display of the graphing.
 plt.plot(pricesTest, color = 'black')
 plt.plot(predictedNormalPrice, color = 'red')
 plt.plot(arimaPred, color='gray', )
-plt.plot(movingAverage, color= 'blue')
+plt.plot(ema, color= 'blue')
 plt.title('Deep Learning Prediction of AUS/USD Exchange Rate')
 plt.xlabel('Trading Days')
 plt.ylabel('Foreign Exchange Rate AUS/USD')
-plt.legend(['Real Forex', "LSTM", "Arima", "Moving Average"], loc='best')
+plt.legend(['Real Forex', "LSTM", "Arima", "Exponential Moving Average"], loc='best')
 plt.show()
 
-plt.plot(abs(pricesTest - predictedNormalPrice))
+plt.plot(abs(pricesTest - ema), color='gray', label = 'EMA Errors')
+plt.plot(abs(pricesTest - arimaPred), color = 'black', label= 'Arima Errors')
+plt.plot(abs(pricesTest - predictedNormalPrice), color='red', label = 'LSTM Errors')
+plt.legend(['EMA Errors', "ARIMA Errors", "LSTM Errors"], loc='best')
 plt.show()
 
 
@@ -396,17 +402,10 @@ print("MAE: ", regMAE)
 print("MAPE: ", regMAPE)
 
 # Moving Average Metrics to be calculated and then printed.
-movRMSE = round(math.sqrt(mean_squared_error(pricesTest, movingAverage)), 6)
-movMAE = round(mean_absolute_error(pricesTest, movingAverage), 6)
-movMAPE = round(mean_absolute_percentage_error(pricesTest, movingAverage), 6)
+movRMSE = round(math.sqrt(mean_squared_error(pricesTest, ema)), 6)
+movMAE = round(mean_absolute_error(pricesTest, ema), 6)
+movMAPE = round(mean_absolute_percentage_error(pricesTest, ema), 6)
 print("\nMoving Average")
 print("RMSE: ", movRMSE)
 print("MAE: ", movMAE)
 print("MAPE: ", movMAPE)
-
-
-
-
-
-
-
