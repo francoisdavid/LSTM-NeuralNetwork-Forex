@@ -331,7 +331,7 @@ for i in range(buffer, len(forexPrices) ):
         print("\nPercentage Done of Arima Precition = %f %% \n" % int((round(loopCount / percentage))))
     ActualValue = realPrices[i]
     # forcast value
-    Prediction = getArimaPrediction(Actual, 3, 2, 0)
+    Prediction = getArimaPrediction(Actual, 2, 1, 0)
     print('Actual=%f, Predicted=%f, Difference=%f' % (ActualValue, Prediction, abs(ActualValue-Prediction)))
     # add it in the list
     arimaPred.append(Prediction)
