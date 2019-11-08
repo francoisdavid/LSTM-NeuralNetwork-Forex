@@ -200,7 +200,7 @@ gdpUSAScaler.fit(gdppUSA)
 forexData["GDP-USA"] = gdpUSAScaler.transform(gdppUSA)
 
 
-# Get the Forex data. Which is set to Euro to USD
+# Get the Forex data. Which is set to AUS to USD
 forexPrices  = quandl.get("SGE/AUSCUR", authtoken="g5x4nVyzgx-hKs6s7Nt2", start_date="1992-12-31", end_date="2018-03-29")
 
 # Transform the value of the exchange rate so that it is normalized according to the range.
